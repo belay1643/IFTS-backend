@@ -8,7 +8,7 @@ Full-stack web application for Ethiopian investors with multi-company portfolio 
 - Frontend production build is passing.
 
 ## Tech Stack
-- Backend: Node.js, Express, Sequelize (MySQL), JWT, bcrypt, express-validator, Swagger
+- Backend: Node.js, Express, Mongoose (MongoDB), JWT, bcrypt, express-validator, Swagger
 - Frontend: React (Vite), Redux Toolkit, Tailwind CSS, Recharts, jsPDF, xlsx
 
 ## Quick Start
@@ -27,6 +27,7 @@ API docs at `/api/docs` when backend is running.
 - Run backend and frontend in separate terminals.
 - If backend code changes do not appear in the UI, restart backend (`cd backend && npm run dev`).
 - Ensure frontend API base URL matches backend host/port in environment config.
+- Local development uses MongoDB at `mongodb://127.0.0.1:27017/IFTS`.
 
 ## Scripts
 - Backend: `npm run dev`, `npm run start`, `npm run migrate`, `npm run seed`
@@ -58,8 +59,8 @@ API docs at `/api/docs` when backend is running.
 - Transaction creation supports optional investment linkage and validates status/amount rules on the backend.
 
 ## Database
-- Schema in `backend/db/migrations/initial.sql`
-- Sequelize models in `backend/src/models`
+- MongoDB models in `backend/src/models/mongoModels.js`
+- Local database name: `IFTS`
 
 ## Sample Accounts
 - Email: `admin@ifts.test` / Password: `Password123!`

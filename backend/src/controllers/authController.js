@@ -11,6 +11,7 @@ import {
   LoginAttempt
 } from '../models/index.js'
 import { signAccessToken } from '../utils/token.js'
+import { isSuperAdminEmail } from '../utils/superAdmin.js'
 import { isEmailProviderConfigured, sendResetEmail, sendVerificationEmail } from '../services/emailService.js'
 
 const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
@@ -64,6 +65,18 @@ export const register = async (req, res, next) => {
     const hash = await bcrypt.hash(password, 12)
     const user = await User.create({ name, email, password: hash, role: 'viewer', isVerified: false })
 
+    const shouldAutoVerify = process.env.NODE_ENV !== 'production' || !isEmailProviderConfigured
+
+    if (shouldAutoVerify) {
+      await user.update({ isVerified: true })
+      return res.status(201).json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        message: 'Registered and auto-verified (dev mode)'
+      })
+    }
+
     const emailEnabled = isEmailProviderConfigured
 
     if (emailEnabled) {
@@ -86,7 +99,6 @@ export const register = async (req, res, next) => {
       })
     }
 
-    // Auto-verify in dev when no email provider is configured
     await user.update({ isVerified: true })
     res.status(201).json({
       id: user.id,
@@ -134,18 +146,19 @@ export const login = async (req, res, next) => {
     if (!ok) {
       const nextFailed = user.failedLogins + 1
       const lockedUntil = nextFailed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60 * 1000) : null
-      await user.update({ failedLogins: nextFailed, lockedUntil })
+      await User.mongooseModel.updateOne({ _id: user.id }, { $set: { failedLogins: nextFailed, lockedUntil } }).exec()
       await LoginAttempt.create({ userId: user.id, email, success: false, ip: req.ip, reason: 'bad_password' })
       return genericError()
     }
 
     if (!user.isVerified) return res.status(403).json({ message: 'Email not verified' })
 
-    await user.update({ failedLogins: 0, lockedUntil: null })
+    await User.mongooseModel.updateOne({ _id: user.id }, { $set: { failedLogins: 0, lockedUntil: null } }).exec()
 
     const memberships = await UserCompanyRole.findAll({ where: { userId: user.id }, attributes: ['companyId', 'role'] })
+    const effectiveRole = isSuperAdminEmail(user.email) ? 'admin' : user.role
     const companies = memberships.map((m) => m.companyId)
-    const payload = { sub: user.id, role: user.role, companyIds: companies }
+    const payload = { sub: user.id, role: effectiveRole, companyIds: companies }
     const accessToken = signAccessToken(payload, { jwtid: crypto.randomUUID() })
 
     const { token: refreshTokenPlain, tokenHash, expiresAt } = generateToken(REFRESH_TTL_DAYS * 24 * 60)
@@ -163,7 +176,7 @@ export const login = async (req, res, next) => {
 
     res.json({
       accessToken,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, companies }
+      user: { id: user.id, name: user.name, email: user.email, role: effectiveRole, companies }
     })
   } catch (err) {
     next(err)
@@ -185,8 +198,9 @@ export const refresh = async (req, res, next) => {
 
     const user = await User.findByPk(stored.userId)
     const memberships = await UserCompanyRole.findAll({ where: { userId: user.id }, attributes: ['companyId'] })
+    const effectiveRole = isSuperAdminEmail(user.email) ? 'admin' : user.role
     const companies = memberships.map((m) => m.companyId)
-    const accessToken = signAccessToken({ sub: user.id, role: user.role, companyIds: companies }, { jwtid: crypto.randomUUID() })
+    const accessToken = signAccessToken({ sub: user.id, role: effectiveRole, companyIds: companies }, { jwtid: crypto.randomUUID() })
 
     res.cookie('refreshToken', newPlain, {
       httpOnly: true,

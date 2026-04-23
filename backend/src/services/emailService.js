@@ -132,3 +132,75 @@ export const sendResetEmail = async ({ email, token }) => {
   const html = `<p>Reset your Ethio Vest password.</p><p><a href="${link}">Reset Password</a></p><p>This link expires in 30 minutes.</p>`
   return sendEmail({ to: email, subject: 'Reset your Ethio Vest password', html })
 }
+
+export const sendUserInviteEmail = async ({ email, name, role, companyId, tempPassword }) => {
+  const loginLink = `${frontendUrl}/login?email=${encodeURIComponent(email)}`
+  const roleLabel = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Manager'
+  const credentialRows = tempPassword
+    ? `<tr><td style="padding:6px 12px;color:#94a3b8;font-size:13px;">Email</td><td style="padding:6px 12px;color:#f1f5f9;font-size:13px;font-weight:600;">${email}</td></tr>
+       <tr><td style="padding:6px 12px;color:#94a3b8;font-size:13px;">Temporary password</td><td style="padding:6px 12px;color:#34d399;font-size:13px;font-weight:700;letter-spacing:0.05em;">${tempPassword}</td></tr>`
+    : `<tr><td colspan="2" style="padding:8px 12px;color:#94a3b8;font-size:13px;">Your account already exists — your role has been updated.</td></tr>`
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;padding:40px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" style="max-width:520px;background:#1e293b;border-radius:20px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#064e3b 0%,#0f172a 60%,#1e1b4b 100%);padding:36px 32px 28px;text-align:center;">
+          <div style="display:inline-block;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.3);border-radius:16px;padding:10px 20px;margin-bottom:16px;">
+            <span style="font-size:22px;font-weight:900;letter-spacing:-0.5px;color:#ffffff;">Ethio<span style="color:#34d399;">Vest</span></span>
+          </div>
+          <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">You're invited!</h1>
+          <p style="margin:8px 0 0;font-size:14px;color:#94a3b8;">You have been granted <strong style="color:#34d399;">${roleLabel}</strong> access.</p>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:28px 32px;">
+          <p style="margin:0 0 20px;font-size:15px;color:#cbd5e1;line-height:1.6;">Hello <strong style="color:#f1f5f9;">${name || 'there'}</strong>,</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#94a3b8;line-height:1.7;">
+            An administrator has invited you to manage <strong style="color:#e2e8f0;">${companyId || 'a company'}</strong> on the Ethio Vest investment platform. Use the credentials below to log in and get started.
+          </p>
+
+          <!-- Credentials box -->
+          <table role="presentation" width="100%" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;margin-bottom:28px;border-collapse:collapse;">
+            <tr><td colspan="2" style="padding:10px 12px 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;border-bottom:1px solid rgba(255,255,255,0.06);">Your credentials</td></tr>
+            ${credentialRows}
+          </table>
+
+          <!-- CTA button -->
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td align="center">
+              <a href="${loginLink}"
+                 style="display:inline-block;background:linear-gradient(135deg,#10b981,#06b6d4);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:50px;letter-spacing:0.02em;box-shadow:0 8px 24px -6px rgba(16,185,129,0.5);">
+                Log In to Ethio Vest →
+              </a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0;font-size:12px;color:#475569;text-align:center;line-height:1.6;">
+            Or copy this link into your browser:<br>
+            <a href="${loginLink}" style="color:#34d399;word-break:break-all;">${loginLink}</a>
+          </p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:16px 32px 24px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
+          <p style="margin:0;font-size:12px;color:#475569;line-height:1.6;">
+            If you did not expect this invitation, please ignore this email or contact your administrator.<br>
+            © ${new Date().getFullYear()} Ethio Vest · Investment Platform
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+  return sendEmail({ to: email, subject: `You are invited to Ethio Vest as ${roleLabel}`, html })
+}

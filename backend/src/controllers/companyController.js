@@ -1,5 +1,6 @@
 import { body, param, query } from 'express-validator'
 import { Company, UserCompanyRole } from '../models/index.js'
+import { isSuperAdminEmail } from '../utils/superAdmin.js'
 
 export const createCompanyValidators = [
   body('name').notEmpty(),
@@ -25,8 +26,15 @@ export const listCompanyValidators = [
 
 export const listCompanies = async (req, res, next) => {
   try {
-    const memberships = await UserCompanyRole.findAll({ where: { userId: req.user.id }, include: Company })
-    let companies = memberships.map((m) => ({ ...m.Company.toJSON(), role: m.role }))
+    const superAdmin = isSuperAdminEmail(req.user?.email)
+    let companies
+    if (superAdmin) {
+      const allCompanies = await Company.findAll()
+      companies = allCompanies.map((company) => ({ ...company.toJSON(), role: 'admin' }))
+    } else {
+      const memberships = await UserCompanyRole.findAll({ where: { userId: req.user.id }, include: Company })
+      companies = memberships.map((m) => ({ ...m.Company.toJSON(), role: m.role }))
+    }
 
     const { search, status } = req.query
     if (search) {

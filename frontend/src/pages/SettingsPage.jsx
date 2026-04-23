@@ -110,7 +110,7 @@ const SettingsPage = () => {
   const [users, setUsers] = useState([])
   const [userLoading, setUserLoading] = useState(false)
   const [userError, setUserError] = useState('')
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: 'manager', password: '' })
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '', phone: '', role: 'manager', password: '' })
   const [assignForm, setAssignForm] = useState({ email: '', role: 'viewer' })
 
   // Shared state for toggles/forms (local only for now)
@@ -322,6 +322,7 @@ const SettingsPage = () => {
         id: payload.user.id,
         name: payload.user.name,
         email: payload.user.email,
+        phone: payload.user.phone || '',
         role: payload.role,
         companyId: payload.companyId,
         status: payload.status || 'Active'
@@ -342,7 +343,7 @@ const SettingsPage = () => {
     try {
       const { data } = await api.post('/users/invite', { ...inviteForm, companyId: active })
       upsertUser({ ...data, status: 'Active' })
-      setInviteForm({ name: '', email: '', role: 'manager', password: '' })
+      setInviteForm({ name: '', email: '', phone: '', role: 'manager', password: '' })
       setStatusMsg(data.tempPassword ? `User invited. Temp password: ${data.tempPassword}` : 'User invited')
     } catch (err) {
       setUserError(err.response?.data?.message || 'Failed to invite user')
@@ -638,6 +639,7 @@ const UserManagementPanel = ({ users, loading, error, inviteForm, setInviteForm,
             <div className="grid gap-4">
               <LabeledInput label="Name" value={inviteForm.name} onChange={(v) => setInviteForm((current) => ({ ...current, name: v }))} />
               <LabeledInput label="Email" value={inviteForm.email} onChange={(v) => setInviteForm((current) => ({ ...current, email: v }))} />
+              <LabeledInput label="Phone" value={inviteForm.phone} onChange={(v) => setInviteForm((current) => ({ ...current, phone: v }))} />
               <LabeledSelect
                 label="Role"
                 value={inviteForm.role}

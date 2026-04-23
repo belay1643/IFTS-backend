@@ -15,8 +15,9 @@ const NAV_LINKS = [
   { to: '/approvals', label: 'Approvals', icon: '✅', roles: ['admin', 'manager'] },
   { to: '/notifications', label: 'Notifications', icon: '🔔', roles: ['admin', 'manager', 'viewer'] },
   { to: '/reports', label: 'Reports', icon: '📑', roles: ['admin', 'manager', 'viewer'] },
+  { to: '/managers', label: 'Managers', icon: '🧑‍💼', roles: ['admin', 'manager'] },
   { to: '/audit', label: 'Audit Logs', icon: '🧾', roles: ['admin'] },
-  { to: '/settings', label: 'Settings', icon: '⚙️', roles: ['admin'] }
+  { to: '/settings', label: 'Settings', icon: '⚙️', roles: ['admin', 'manager'] }
 ]
 
 const Topbar = () => {
@@ -42,7 +43,7 @@ const Topbar = () => {
   const displayEmail = profileSettings?.email || user?.email || ''
   const isDark = theme === 'dark'
   const initials = displayName ? displayName.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase() : 'U'
-  const isAdmin = list.some((c) => c.role === 'admin')
+  const canConsolidate = list.length > 0
   const activeRole = list.find((c) => c.id === active)?.role || 'viewer'
   const mobileLinks = useMemo(() => NAV_LINKS.filter((link) => link.roles.includes(activeRole)), [activeRole])
 
@@ -78,6 +79,9 @@ const Topbar = () => {
     }
     if (pathname === '/reports') {
       return { title: 'Reports', subtitle: 'Generate statements and compliance exports', showViewSelector: false }
+    }
+    if (pathname === '/managers') {
+      return { title: 'Managers', subtitle: 'Invite and assign manager access', showViewSelector: false }
     }
     if (pathname === '/audit') {
       return { title: 'Audit Logs', subtitle: 'Trace activity and system changes', showViewSelector: false }
@@ -233,7 +237,7 @@ const Topbar = () => {
                 className="h-9 rounded-full border border-[color:var(--panel-border)] bg-[var(--bg-card)] px-4 text-[11px] font-semibold text-[color:var(--text-primary)] shadow-sm outline-none transition hover:bg-[var(--bg-hover)]"
               >
                 <option value="single">Single Company</option>
-                {isAdmin && <option value="consolidated">Consolidated</option>}
+                {canConsolidate && <option value="consolidated">All Companies (Consolidated)</option>}
               </select>
             </div>
           )}
@@ -401,7 +405,7 @@ const Topbar = () => {
                   className="h-10 w-full rounded-xl border border-[color:var(--panel-border)] bg-[var(--bg-card)] px-3 text-[12px] font-semibold text-[color:var(--text-primary)]"
                 >
                   <option value="single">Single Company</option>
-                  {isAdmin && <option value="consolidated">Consolidated</option>}
+                  {canConsolidate && <option value="consolidated">All Companies (Consolidated)</option>}
                 </select>
               </div>
             )}

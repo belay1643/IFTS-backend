@@ -11,4 +11,26 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Handle JWT expired globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isJwtExpired = error?.response?.status === 401 &&
+      (error?.response?.data?.message?.toLowerCase().includes('jwt expired') ||
+        error?.response?.data?.error?.toLowerCase().includes('jwt expired'))
+    if (isJwtExpired) {
+      // Remove tokens
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+      }
+      // Redirect to login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default api

@@ -97,19 +97,19 @@ const DashboardPage = () => {
   const { theme } = useSelector((s) => s.ui)
 
   const isDark = theme === 'dark'
-  const isAdmin = list.some((c) => c.role === 'admin')
+  const canConsolidate = list.length > 0
 
   const summaryPayload = useMemo(() => {
     if (mode === 'consolidated') {
-      if (!isAdmin || list.length === 0) return null
+      if (list.length === 0) return null
       return { mode: 'consolidated', companyIds: list.map((c) => c.id) }
     }
     if (active) return { mode: 'single', companyIds: [active] }
     return null
-  }, [mode, active, list, isAdmin])
+  }, [mode, active, list])
 
   useEffect(() => {
-    if (mode === 'consolidated' && !isAdmin) {
+    if (mode === 'consolidated' && !canConsolidate) {
       dispatch(setDashboardMode('single'))
       return
     }
@@ -122,7 +122,7 @@ const DashboardPage = () => {
     if (summaryPayload) {
       dispatch(fetchSummary(summaryPayload))
     }
-  }, [dispatch, mode, active, list, isAdmin, summaryPayload])
+  }, [dispatch, mode, active, list, canConsolidate, summaryPayload])
 
   useEffect(() => {
     if (!summaryPayload) return undefined
@@ -139,55 +139,57 @@ const DashboardPage = () => {
     const profitRaw = Number(summary?.totalProfit ?? 0)
     const activeAssetsRaw = Number(summary?.activeAssets ?? 0)
     const portfolioValue = portfolioValueRaw
-    const profitValue = profitRaw
+    const profitValue = profitRaw > 0 ? profitRaw : 0
+    const lossValue = profitRaw < 0 ? Math.abs(profitRaw) : 0
     const activeAssets = activeAssetsRaw
     const pending = pendingCount
     const uniqueAssetTypes = countAssetTypesFromSummary(summary)
-    const cashSeries = Array.isArray(summary?.cashflow) ? summary.cashflow.map((c) => Number(c.amount || 0)).slice(-8) : []
-    const profitSeries = Array.isArray(summary?.profitSeries) ? summary.profitSeries.slice(-8).map(Number) : cashSeries
-    const investmentTrend = Number.isFinite(Number(deltas.investment)) ? Number(deltas.investment) : deriveTrend(cashSeries)
-    const rawProfitTrend = Number.isFinite(Number(deltas.profit)) ? Number(deltas.profit) : deriveTrend(profitSeries)
-    const profitTrend = profitValue < 0 && rawProfitTrend >= 0 ? -Math.abs(rawProfitTrend || 10) : rawProfitTrend
+    // No sparklines, no icons, no extra signs
     return [
       {
-        icon: '💰',
         tone: 'blue',
         title: 'Portfolio Value',
         value: formatCurrency(portfolioValue),
-        change: `${withPercent(investmentTrend, '+0.0%')} vs last month`,
-        sparkline: toSparklineSeries(cashSeries, portfolioValue),
+        change: '',
+        sparkline: null,
         toneColor: '#4F46E5',
-        trendValue: investmentTrend
+        trendValue: 0
       },
       {
-        icon: '📈',
         tone: 'green',
-        title: 'Total Profit/Loss',
-        value: formatSignedCurrency(profitValue),
-        change: `${withPercent(profitTrend, '+0.0%')} vs last month`,
-        sparkline: toSparklineSeries(profitSeries, profitValue),
-        toneColor: profitValue < 0 ? '#DC2626' : '#16A34A',
-        trendValue: profitTrend
+        title: 'Profit',
+        value: formatCurrency(profitValue),
+        change: '',
+        sparkline: null,
+        toneColor: '#16A34A',
+        trendValue: 0
       },
       {
-        icon: '📦',
+        tone: 'red',
+        title: 'Loss',
+        value: formatCurrency(lossValue),
+        change: '',
+        sparkline: null,
+        toneColor: '#DC2626',
+        trendValue: 0
+      },
+      {
         tone: 'violet',
         title: 'Active Assets',
         value: formatNumber(activeAssets),
-        change: `${uniqueAssetTypes || 0} asset types`,
-        sparkline: toSparklineSeries(activeAssetsRaw ? [activeAssetsRaw] : [], activeAssetsRaw),
+        change: '',
+        sparkline: null,
         toneColor: '#7C3AED',
         trendValue: 0
       },
       {
-        icon: '⏳',
         tone: 'blue',
         title: 'Pending Approvals',
         value: formatNumber(pending),
-        change: pending === 1 ? '1 item needs review' : `${pending} items need review`,
-        sparkline: toSparklineSeries([pending], pending),
+        change: '',
+        sparkline: null,
         toneColor: '#0284C7',
-        trendValue: pending > 0 ? -1 : 0,
+        trendValue: 0,
         badge: pending > 0 ? `Urgent: ${pending}` : null
       }
     ]
@@ -365,6 +367,23 @@ const DashboardPage = () => {
               <p className="max-w-2xl text-[12px] sm:text-[13px] text-[color:var(--text-secondary)]">Monitor performance, approvals, and risk posture in one place.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-[color:var(--text-secondary)]">
+              <div className="inline-flex items-center rounded-full border border-[color:var(--panel-border)] bg-[var(--bg-card)] p-0.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => dispatch(setDashboardMode('single'))}
+                  className={`rounded-full px-3 py-1 text-xs transition ${mode === 'single' ? 'bg-[var(--bg-hover)] text-[color:var(--text-primary)]' : 'text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'}`}
+                >
+                  Single
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dispatch(setDashboardMode('consolidated'))}
+                  disabled={!canConsolidate}
+                  className={`rounded-full px-3 py-1 text-xs transition ${mode === 'consolidated' ? 'bg-[var(--bg-hover)] text-[color:var(--text-primary)]' : 'text-[color:var(--text-secondary)] hover:text-[color:var(--text-primary)]'} disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  All Companies
+                </button>
+              </div>
               {mode === 'single' && list.length > 0 && (
                 <select
                   value={active || ''}
@@ -804,17 +823,8 @@ const InvestmentGrowth = ({ data, isDark }) => {
             <XAxis dataKey="month" stroke={isDark ? '#e2e8f0' : '#334155'} tickLine={false} axisLine={false} tickMargin={10} />
             <YAxis stroke={isDark ? '#e2e8f0' : '#334155'} tickFormatter={formatAxisCurrencyShort} tickLine={false} axisLine={false} tickMargin={10} />
             <Tooltip contentStyle={tooltipStyle(isDark)} formatter={(value) => [formatCurrency(value), 'Portfolio value']} />
-            <Area type="monotone" dataKey="amount" stroke="#38bdf8" strokeWidth={3} fill="url(#growthArea)" filter="url(#glow)" dot={{ r: 4, fill: '#38bdf8', stroke: '#0ea5e9', strokeWidth: 1.5 }} activeDot={{ r: 6 }} />
-            {lastPoint && (
-              <Line
-                type="monotone"
-                data={[lastPoint]}
-                dataKey="amount"
-                stroke="transparent"
-                dot={{ r: 6, fill: '#38bdf8', stroke: '#0ea5e9', strokeWidth: 2, filter: 'url(#glow)', className: 'drop-shadow-[0_0_12px_rgba(56,189,248,0.8)]' }}
-                isAnimationActive={false}
-              />
-            )}
+            <Area type="monotone" dataKey="amount" stroke="#38bdf8" strokeWidth={3} fill="url(#growthArea)" filter="url(#glow)" dot={false} activeDot={false} />
+            {/* Removed last point marker */}
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -843,13 +853,13 @@ const MetricCard = ({ icon, tone, title, value, change, sparkline, toneColor, tr
   return (
     <div className="elevated-card min-h-[176px] sm:min-h-[216px] px-4 sm:px-5 py-4 sm:py-[18px]">
       <div className="flex items-center gap-3">
-        <span className={`h-10 w-10 rounded-xl border flex items-center justify-center text-base ${iconTone[tone] || 'bg-[var(--bg-hover)] border-[color:var(--panel-border)] text-[color:var(--text-primary)]'}`}>{icon}</span>
+        {/* Icon removed as requested */}
         <div className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">{title}</div>
       </div>
       <div className="mt-2.5 text-[24px] sm:text-[29px] leading-none font-extrabold tracking-tight text-[color:var(--text-primary)]">{value}</div>
-      <div className={`mt-2.5 text-[11px] font-semibold ${toneClass}`}>{trendIcon} {change}</div>
+      <div className={`mt-2.5 text-[11px] font-semibold ${toneClass}`}></div>
       {badge && <div className="mt-2 inline-flex rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600">🔔 {badge}</div>}
-      {sparkline && <Sparkline data={sparkline} color={toneColor} />}
+      {/* Sparkline removed as requested */}
     </div>
   )
 }
@@ -873,7 +883,7 @@ const Sparkline = ({ data, color = '#4F46E5' }) => {
     <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 w-full h-12" preserveAspectRatio="none">
       <polyline fill="none" stroke={`${color}33`} strokeWidth="6" points={points} strokeLinecap="round" />
       <polyline fill="none" stroke={color} strokeWidth="3" points={points} strokeLinecap="round" />
-      <circle r="4" cx={w} cy={h - ((data[data.length - 1] - min) / range) * h} fill={color} stroke="#fff" strokeWidth="1.5" />
+      {/* Removed dot, triangle, and marker */}
     </svg>
   )
 }

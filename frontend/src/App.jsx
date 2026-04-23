@@ -11,6 +11,7 @@ import ApprovalsPage from './pages/ApprovalsPage.jsx'
 import ApprovalDetailPage from './pages/ApprovalDetailPage.jsx'
 import ReportsPage from './pages/ReportsPage.jsx'
 import ProfitLossReportPage from './pages/ProfitLossReportPage.jsx'
+import ManagersPage from './pages/ManagersPage.jsx'
 import AuditLogsPage from './pages/AuditLogsPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import NotificationsPage from './pages/NotificationsPage.jsx'
@@ -178,6 +179,18 @@ const App = () => {
         }
       />
       <Route
+        path="/managers"
+        element={
+          <RequireAuth>
+            <RequireRole allowed={['admin', 'manager']}>
+              <Layout>
+                <ManagersPage />
+              </Layout>
+            </RequireRole>
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/audit"
         element={
           <RequireAuth>
@@ -193,7 +206,7 @@ const App = () => {
         path="/settings"
         element={
           <RequireAuth>
-            <RequireRole allowed={['admin']}>
+            <RequireRole allowed={['admin', 'manager']}>
               <Layout>
                 <SettingsPage />
               </Layout>

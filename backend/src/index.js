@@ -8,10 +8,11 @@ const BASE_PORT = Number(process.env.PORT) || 5000
 const MAX_PORT_RETRIES = 10
 
 const getMongoLogTarget = () => {
-  const fallback = 'mongodb://127.0.0.1:27017'
   const rawUri = process.env.MONGO_URI
 
-  if (!rawUri) return fallback
+  if (!rawUri) {
+    throw new Error('MONGO_URI environment variable is not set. A MongoDB Atlas connection string is required.')
+  }
 
   try {
     const parsed = new URL(rawUri)

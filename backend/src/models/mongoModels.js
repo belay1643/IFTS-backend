@@ -4,7 +4,9 @@ import mongoose from 'mongoose'
 const mongoDatabaseName = process.env.MONGO_DB_NAME || 'IFTS-SYSTEMS'
 
 const resolveMongoUri = (rawUri, dbName) => {
-  if (!rawUri) return `mongodb://127.0.0.1:27017/${dbName}`
+  if (!rawUri) {
+    throw new Error('MONGO_URI environment variable is not set. A MongoDB Atlas connection string is required.')
+  }
 
   try {
     const parsed = new URL(rawUri)

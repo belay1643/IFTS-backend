@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { sequelize, User, Company, UserCompanyRole, Investment, Transaction } from '../models/index.js'
 import { recalcInvestment } from '../services/calculationService.js'
 

@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "https://github.com/belay1643/IFTS-frontend.git/"
+    }
+  ],
+  "VITE_API_URL": "https://your-backend-url.com"
+}

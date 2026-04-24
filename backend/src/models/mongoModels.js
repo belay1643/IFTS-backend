@@ -1,6 +1,5 @@
 import crypto from 'crypto'
 import mongoose from 'mongoose'
-import { Op } from 'sequelize'
 
 const mongoDatabaseName = process.env.MONGO_DB_NAME || 'IFTS-SYSTEMS'
 

@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { body, query } from 'express-validator'
 import { User, UserCompanyRole } from '../models/index.js'

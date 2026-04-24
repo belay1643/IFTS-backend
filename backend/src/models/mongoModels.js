@@ -10,8 +10,15 @@ const resolveMongoUri = (rawUri, dbName) => {
     const parsed = new URL(rawUri)
     const hasDbName = parsed.pathname && parsed.pathname !== '/'
     if (!hasDbName) {
-      parsed.pathname = `/${dbName}`
-      return parsed.toString()
+      // Inject the database name via string manipulation to avoid URL
+      // encoding issues with credentials or query parameters when using
+      // parsed.toString() on a non-standard mongodb+srv:// protocol URI.
+      const querySep = rawUri.indexOf('?')
+      if (querySep !== -1) {
+        // Insert db name before the query string: ...net/<dbName>?appName=...
+        return `${rawUri.slice(0, querySep)}${dbName}${rawUri.slice(querySep)}`
+      }
+      return rawUri.replace(/\/?$/, `/${dbName}`)
     }
     return rawUri
   } catch {

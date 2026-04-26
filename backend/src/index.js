@@ -1,8 +1,21 @@
 import 'dotenv/config'
+import bcrypt from 'bcryptjs'
 import { createServer } from 'node:http'
 import app from './app.js'
-import { sequelize } from './models/index.js'
+import { sequelize, User } from './models/index.js'
 import { getEmailProviderStatus } from './services/emailService.js'
+import { getSuperAdminEmail } from './utils/superAdmin.js'
+
+const seedSuperAdmin = async () => {
+  const email = getSuperAdminEmail()
+  const password = process.env.SUPER_ADMIN_PASSWORD || 'Admin@1234'
+  const existing = await User.findOne({ where: { email } })
+  if (!existing) {
+    const hash = await bcrypt.hash(password, 12)
+    await User.create({ name: 'Super Admin', email, password: hash, role: 'admin', isVerified: true })
+    console.log(`Super admin created: ${email}`)
+  }
+}
 
 const BASE_PORT = Number(process.env.PORT) || 5000
 const MAX_PORT_RETRIES = 10
@@ -61,6 +74,7 @@ const start = async () => {
     console.log(`Connecting to PostgreSQL at ${process.env.DATABASE_URL}`)
     await sequelize.authenticate()
     await sequelize.sync({ alter: true })
+    await seedSuperAdmin()
     if ((process.env.NODE_ENV || 'development') === 'development') {
       const emailStatus = getEmailProviderStatus()
       console.log('Email provider status', emailStatus)

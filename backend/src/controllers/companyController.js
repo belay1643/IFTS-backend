@@ -32,8 +32,13 @@ export const listCompanies = async (req, res, next) => {
       const allCompanies = await Company.findAll()
       companies = allCompanies.map((company) => ({ ...company.toJSON(), role: 'admin' }))
     } else {
-      const memberships = await UserCompanyRole.findAll({ where: { userId: req.user.id }, include: Company })
-      companies = memberships.map((m) => ({ ...m.Company.toJSON(), role: m.role }))
+      const memberships = await UserCompanyRole.findAll({ where: { userId: req.user.id } })
+      const companyIds = memberships.map((m) => m.companyId)
+      const companyList = await Company.findAll({ where: { id: companyIds } })
+      const companyMap = Object.fromEntries(companyList.map((c) => [c.id, c]))
+      companies = memberships
+        .filter((m) => companyMap[m.companyId])
+        .map((m) => ({ ...companyMap[m.companyId].toJSON(), role: m.role }))
     }
 
     const { search, status } = req.query
@@ -72,8 +77,11 @@ export const updateCompany = async (req, res, next) => {
   try {
     const company = await Company.findByPk(req.params.id)
     if (!company) return res.status(404).json({ message: 'Company not found' })
-    const membership = await UserCompanyRole.findOne({ where: { userId: req.user.id, companyId: company.id } })
-    if (!membership || membership.role !== 'admin') return res.status(403).json({ message: 'Admin role required' })
+    const superAdmin = isSuperAdminEmail(req.user?.email)
+    if (!superAdmin) {
+      const membership = await UserCompanyRole.findOne({ where: { userId: req.user.id, companyId: company.id } })
+      if (!membership || membership.role !== 'admin') return res.status(403).json({ message: 'Admin role required' })
+    }
     res.locals.oldValue = company.toJSON()
     await company.update(req.body)
     res.locals.newValue = company.toJSON()

@@ -26,17 +26,22 @@ const hashPassword = async (password) => bcrypt.hash(password, 12)
 export const listUsers = async (req, res, next) => {
   try {
     const companyId = req.query.companyId
-    const memberships = await UserCompanyRole.findAll({ where: { companyId }, include: [{ model: User }] })
-    const users = memberships.map((m) => ({
-      id: m.User.id,
-      name: m.User.name,
-      email: m.User.email,
-      phone: m.User.phone || '',
-      role: m.role,
-      companyId: m.companyId,
-      status: m.User.isVerified ? 'Active' : 'Pending'
-    }))
-    res.json(users)
+    const memberships = await UserCompanyRole.findAll({ where: { companyId } })
+    const userIds = memberships.map((m) => m.userId)
+    const users = userIds.length > 0 ? await User.findAll({ where: { id: userIds } }) : []
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u]))
+    const result = memberships
+      .filter((m) => userMap[m.userId])
+      .map((m) => ({
+        id: userMap[m.userId].id,
+        name: userMap[m.userId].name,
+        email: userMap[m.userId].email,
+        phone: userMap[m.userId].phone || '',
+        role: m.role,
+        companyId: m.companyId,
+        status: userMap[m.userId].isVerified ? 'Active' : 'Pending'
+      }))
+    res.json(result)
   } catch (err) {
     next(err)
   }
@@ -47,6 +52,17 @@ export const inviteUser = async (req, res, next) => {
     const { name, email, role, companyId, phone } = req.body
     const password = req.body.password || crypto.randomBytes(8).toString('hex')
 
+    // Enforce one manager per company
+    if (role === 'manager') {
+      const existingManager = await UserCompanyRole.findOne({ where: { companyId, role: 'manager' } })
+      if (existingManager) {
+        const existingUser = await User.findByPk(existingManager.userId)
+        if (existingUser && existingUser.email !== email) {
+          return res.status(409).json({ message: `This company already has a manager (${existingUser.email}). Remove them first.` })
+        }
+      }
+    }
+
     let user = await User.findOne({ where: { email } })
     if (!user) {
       const hash = await hashPassword(password)
@@ -55,9 +71,7 @@ export const inviteUser = async (req, res, next) => {
       const updatePatch = {}
       if (name && name !== user.name) updatePatch.name = name
       if (phone && phone !== user.phone) updatePatch.phone = phone
-      if (Object.keys(updatePatch).length > 0) {
-        await user.update(updatePatch)
-      }
+      if (Object.keys(updatePatch).length > 0) await user.update(updatePatch)
     }
 
     const [membership, created] = await UserCompanyRole.findOrCreate({
@@ -70,10 +84,7 @@ export const inviteUser = async (req, res, next) => {
     }
 
     const inviteEmailStatus = await sendUserInviteEmail({
-      email,
-      name,
-      role,
-      companyId,
+      email, name, role, companyId,
       tempPassword: created ? password : undefined
     })
 

@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer'
 import { Resend } from 'resend'
 
 const sender = process.env.MAIL_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || process.env.GMAIL_EMAIL || 'no-reply@ethiovest.local'
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+const frontendUrl = process.env.FRONTEND_URL || 'https://ifts-frontend.vercel.app'
 
 const resendApiKey = process.env.RESEND_API_KEY
 const hasResend = Boolean(resendApiKey)
@@ -28,20 +28,20 @@ const hasSmtp = hasGmailSmtp || hasGenericSmtp
 
 const smtpTransporter = hasSmtp
   ? nodemailer.createTransport(
-      hasGmailSmtp
-        ? {
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: { user: gmailUser, pass: gmailPass }
-          }
-        : {
-            host: smtpHost,
-            port: smtpPort,
-            secure: smtpPort === 465,
-            auth: { user: smtpUser, pass: smtpPass }
-          }
-    )
+    hasGmailSmtp
+      ? {
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user: gmailUser, pass: gmailPass }
+      }
+      : {
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: { user: smtpUser, pass: smtpPass }
+      }
+  )
   : null
 
 export const isEmailProviderConfigured = hasResend || hasSmtp || hasBrevo

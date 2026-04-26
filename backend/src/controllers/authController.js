@@ -139,14 +139,14 @@ export const login = async (req, res, next) => {
     if (!ok) {
       const nextFailed = user.failedLogins + 1
       const lockedUntil = nextFailed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60 * 1000) : null
-      await User.mongooseModel.updateOne({ _id: user.id }, { $set: { failedLogins: nextFailed, lockedUntil } }).exec()
+      await User.update({ failedLogins: nextFailed, lockedUntil }, { where: { id: user.id } })
       await LoginAttempt.create({ userId: user.id, email, success: false, ip: req.ip, reason: 'bad_password' })
       return genericError()
     }
 
     if (!user.isVerified) return res.status(403).json({ message: 'Email not verified' })
 
-    await User.mongooseModel.updateOne({ _id: user.id }, { $set: { failedLogins: 0, lockedUntil: null } }).exec()
+    await User.update({ failedLogins: 0, lockedUntil: null }, { where: { id: user.id } })
 
     const memberships = await UserCompanyRole.findAll({ where: { userId: user.id }, attributes: ['companyId', 'role'] })
     const effectiveRole = isSuperAdminEmail(user.email) ? 'admin' : user.role

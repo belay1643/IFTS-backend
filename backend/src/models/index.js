@@ -1,6 +1,5 @@
 export {
     sequelize,
-    syncDb,
     User,
     Company,
     UserCompanyRole,
@@ -14,3 +13,5 @@ export {
     RefreshToken,
     LoginAttempt
 } from './mongoModels.js'
+
+export { sequelize as syncDb } from './mongoModels.js'

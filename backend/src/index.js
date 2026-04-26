@@ -1,25 +1,11 @@
 import 'dotenv/config'
 import { createServer } from 'node:http'
 import app from './app.js'
-import { sequelize, syncDb } from './models/index.js'
+import { sequelize } from './models/index.js'
 import { getEmailProviderStatus } from './services/emailService.js'
 
 const BASE_PORT = Number(process.env.PORT) || 5000
 const MAX_PORT_RETRIES = 10
-
-const getMongoLogTarget = () => {
-  const fallback = 'mongodb://127.0.0.1:27017'
-  const rawUri = process.env.MONGO_URI
-
-  if (!rawUri) return fallback
-
-  try {
-    const parsed = new URL(rawUri)
-    return `${parsed.protocol}//${parsed.host}`
-  } catch {
-    return rawUri
-  }
-}
 
 const listenWithPortFallback = (startPort, retries = MAX_PORT_RETRIES) => new Promise((resolve, reject) => {
   let settled = false
@@ -74,7 +60,7 @@ const start = async () => {
   try {
     console.log(`Connecting to PostgreSQL at ${process.env.DATABASE_URL}`)
     await sequelize.authenticate()
-    await sequelize.sync()
+    await sequelize.sync({ alter: true })
     if ((process.env.NODE_ENV || 'development') === 'development') {
       const emailStatus = getEmailProviderStatus()
       console.log('Email provider status', emailStatus)

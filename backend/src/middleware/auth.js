@@ -17,8 +17,9 @@ const auth = async (req, res, next) => {
     if (companyId) {
       if (superAdmin) {
         const company = await Company.findByPk(companyId)
-        if (!company) return res.status(404).json({ message: 'Company not found' })
-        req.companyContext = { companyId, role: 'admin' }
+        if (company) {
+          req.companyContext = { companyId, role: 'admin' }
+        }
         return next()
       }
       const link = await UserCompanyRole.findOne({ where: { userId: user.id, companyId } })

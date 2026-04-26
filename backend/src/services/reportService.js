@@ -210,36 +210,41 @@ const buildCompanySnapshot = (company, investments, transactions, approvals) => 
 export const companySummary = async (companyId) => {
   if (!companyId) return createEmptySingleSummary()
 
-  const [company, investments, transactions, approvals] = await Promise.all([
+  const [company, investments, transactions] = await Promise.all([
     Company.findByPk(companyId),
     Investment.findAll({ where: { companyId } }),
-    Transaction.findAll({ where: { companyId }, order: [['date', 'DESC']] }),
-    Approval.findAll({
-      where: { status: 'pending' },
-      include: [{ model: Transaction, where: { companyId } }],
-      order: [['requestedAt', 'DESC']],
-      limit: 15
-    })
+    Transaction.findAll({ where: { companyId }, order: [['date', 'DESC']] })
   ])
 
-  return buildCompanySnapshot(company, investments, transactions, approvals)
+  const pendingTxnIds = transactions.filter((t) => t.status === 'pending').map((t) => t.id)
+  const approvals = pendingTxnIds.length > 0
+    ? await Approval.findAll({ where: { transactionId: pendingTxnIds, status: 'pending' }, limit: 15 })
+    : []
+
+  // attach transaction to approval manually
+  const txnMap = Object.fromEntries(transactions.map((t) => [t.id, t]))
+  const approvalsWithTxn = approvals.map((a) => ({ ...a.toJSON(), Transaction: txnMap[a.transactionId] }))
+
+  return buildCompanySnapshot(company, investments, transactions, approvalsWithTxn)
 }
 
 export const consolidatedSummary = async (companyIds) => {
   const ids = Array.isArray(companyIds) ? companyIds.filter(Boolean) : []
   if (ids.length === 0) return createEmptyConsolidatedSummary()
 
-  const [companies, investments, transactions, approvals] = await Promise.all([
+  const [companies, investments, transactions] = await Promise.all([
     Company.findAll({ where: { id: { [Op.in]: ids } } }),
     Investment.findAll({ where: { companyId: { [Op.in]: ids } } }),
-    Transaction.findAll({ where: { companyId: { [Op.in]: ids } }, order: [['date', 'DESC']] }),
-    Approval.findAll({
-      where: { status: 'pending' },
-      include: [{ model: Transaction, where: { companyId: { [Op.in]: ids } } }],
-      order: [['requestedAt', 'DESC']],
-      limit: 30
-    })
+    Transaction.findAll({ where: { companyId: { [Op.in]: ids } }, order: [['date', 'DESC']] })
   ])
+
+  const pendingTxnIds = transactions.filter((t) => t.status === 'pending').map((t) => t.id)
+  const approvals = pendingTxnIds.length > 0
+    ? await Approval.findAll({ where: { transactionId: pendingTxnIds, status: 'pending' }, limit: 30 })
+    : []
+
+  const txnMap = Object.fromEntries(transactions.map((t) => [t.id, t]))
+  const approvalsWithTxn = approvals.map((a) => ({ ...a.toJSON(), Transaction: txnMap[a.transactionId] }))
 
   const investmentsByCompany = investments.reduce((acc, inv) => {
     acc[inv.companyId] = acc[inv.companyId] || []
@@ -253,7 +258,7 @@ export const consolidatedSummary = async (companyIds) => {
     return acc
   }, {})
 
-  const approvalsByCompany = approvals.reduce((acc, approval) => {
+  const approvalsByCompany = approvalsWithTxn.reduce((acc, approval) => {
     const companyId = approval.Transaction?.companyId
     if (!companyId) return acc
     acc[companyId] = acc[companyId] || []

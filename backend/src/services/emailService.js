@@ -3,7 +3,10 @@ import nodemailer from 'nodemailer'
 import { Resend } from 'resend'
 
 const sender = process.env.MAIL_FROM || process.env.SMTP_USER || process.env.GMAIL_USER || process.env.GMAIL_EMAIL || 'no-reply@ethiovest.local'
-const frontendUrl = process.env.FRONTEND_URL || 'https://ifts-frontend.vercel.app'
+const rawFrontendUrl = process.env.FRONTEND_URL || ''
+const frontendUrl = rawFrontendUrl.includes('localhost') || !rawFrontendUrl
+  ? 'https://ifts-frontend.vercel.app'
+  : rawFrontendUrl
 
 const resendApiKey = process.env.RESEND_API_KEY
 const hasResend = Boolean(resendApiKey)

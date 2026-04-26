@@ -2,14 +2,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { body, query } from 'express-validator'
 import { Op } from 'sequelize'
-import {
-  User,
-  EmailVerification,
-  PasswordReset,
-  RefreshToken,
-  UserCompanyRole,
-  LoginAttempt
-} from '../models/index.js'
+import { User, LoginAttempt, RefreshToken, PasswordReset, EmailVerification, UserCompanyRole } from '../models/index.js'
 import { signAccessToken } from '../utils/token.js'
 import { isSuperAdminEmail } from '../utils/superAdmin.js'
 import { isEmailProviderConfigured, sendResetEmail, sendVerificationEmail } from '../services/emailService.js'

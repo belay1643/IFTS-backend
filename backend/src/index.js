@@ -72,9 +72,9 @@ const registerShutdownHandlers = (server) => {
 
 const start = async () => {
   try {
-    console.log(`Connecting to MongoDB at ${getMongoLogTarget()}`)
+    console.log(`Connecting to PostgreSQL at ${process.env.DATABASE_URL}`)
     await sequelize.authenticate()
-    await syncDb()
+    await sequelize.sync()
     if ((process.env.NODE_ENV || 'development') === 'development') {
       const emailStatus = getEmailProviderStatus()
       console.log('Email provider status', emailStatus)

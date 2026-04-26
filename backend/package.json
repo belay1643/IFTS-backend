@@ -27,6 +27,7 @@
     "morgan": "^1.10.0",
     "mysql2": "^3.9.3",
     "nodemailer": "^6.9.15",
+    "pg": "^8.20.0",
     "resend": "^6.10.0",
     "sequelize": "^6.37.1",
     "swagger-jsdoc": "^6.2.8",

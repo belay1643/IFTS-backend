@@ -1,5 +1,6 @@
 import { body, param } from 'express-validator'
 import { Approval, Transaction, UserCompanyRole, Company, Investment, User } from '../models/index.js'
+import { isSuperAdminEmail } from '../utils/superAdmin.js'
 import { pushNotification } from '../services/notificationService.js'
 
 export const decisionValidators = [
@@ -10,32 +11,65 @@ export const decisionValidators = [
 
 export const listApprovals = async (req, res, next) => {
   try {
-    const memberships = await UserCompanyRole.findAll({ where: { userId: req.user.id } })
-    const companyIds = memberships.map((m) => m.companyId)
-    const whereTxn = req.companyContext
-      ? { companyId: req.companyContext.companyId }
-      : companyIds.length
-        ? { companyId: companyIds }
-        : {}
+    const superAdmin = isSuperAdminEmail(req.user?.email)
 
+    // Get accessible company IDs
+    let companyIds = []
+    if (superAdmin) {
+      const allCompanies = await Company.findAll({ attributes: ['id'] })
+      companyIds = allCompanies.map((c) => c.id)
+    } else {
+      const memberships = await UserCompanyRole.findAll({ where: { userId: req.user.id } })
+      companyIds = memberships.map((m) => m.companyId)
+    }
+
+    if (req.companyContext) companyIds = [req.companyContext.companyId]
+    if (companyIds.length === 0) return res.json([])
+
+    // Fetch transactions for those companies
+    const transactions = await Transaction.findAll({
+      where: { companyId: companyIds },
+      order: [['createdAt', 'DESC']],
+      limit: 200
+    })
+    const txnIds = transactions.map((t) => t.id)
+    if (txnIds.length === 0) return res.json([])
+
+    const txnMap = Object.fromEntries(transactions.map((t) => [t.id, t.toJSON()]))
+
+    // Fetch approvals for those transactions
     const approvals = await Approval.findAll({
-      include: [
-        {
-          model: Transaction,
-          where: whereTxn,
-          include: [
-            { model: Company },
-            { model: Investment, required: false },
-            { model: User, as: 'approver', attributes: ['id', 'name', 'email'], required: false }
-          ]
-        },
-        { model: User, as: 'requester', attributes: ['id', 'name', 'email'] },
-        { model: User, as: 'approver', attributes: ['id', 'name', 'email'], required: false }
-      ],
+      where: { transactionId: txnIds },
       order: [['requestedAt', 'DESC']],
       limit: 100
     })
-    res.json(approvals)
+
+    // Fetch related users
+    const userIds = [...new Set([
+      ...approvals.map((a) => a.requestedBy),
+      ...approvals.map((a) => a.approvedBy)
+    ].filter(Boolean))]
+    const users = userIds.length > 0 ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'name', 'email'] }) : []
+    const userMap = Object.fromEntries(users.map((u) => [u.id, u.toJSON()]))
+
+    // Fetch companies
+    const companies = await Company.findAll({ where: { id: companyIds }, attributes: ['id', 'name'] })
+    const companyMap = Object.fromEntries(companies.map((c) => [c.id, c.toJSON()]))
+
+    const result = approvals.map((a) => {
+      const txn = txnMap[a.transactionId] || {}
+      return {
+        ...a.toJSON(),
+        Transaction: {
+          ...txn,
+          Company: companyMap[txn.companyId] || null
+        },
+        requester: userMap[a.requestedBy] || null,
+        approver: userMap[a.approvedBy] || null
+      }
+    })
+
+    res.json(result)
   } catch (err) {
     next(err)
   }
@@ -48,7 +82,7 @@ export const decide = async (req, res, next) => {
     if (req.companyContext && txn.companyId !== req.companyContext.companyId) return res.status(403).json({ message: 'Company context mismatch' })
 
     const membership = await UserCompanyRole.findOne({ where: { userId: req.user.id, companyId: txn.companyId } })
-    if (!membership) return res.status(403).json({ message: 'No access to company' })
+    if (!isSuperAdminEmail(req.user?.email) && !membership) return res.status(403).json({ message: 'No access to company' })
 
     let approval = await Approval.findOne({ where: { transactionId: txn.id } })
     if (!approval) approval = await Approval.create({ transactionId: txn.id, requestedBy: req.user.id })

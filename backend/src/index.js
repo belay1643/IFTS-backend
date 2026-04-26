@@ -73,7 +73,7 @@ const start = async () => {
   try {
     console.log(`Connecting to PostgreSQL at ${process.env.DATABASE_URL}`)
     await sequelize.authenticate()
-    await sequelize.sync({ alter: true })
+    await sequelize.sync({ force: false })
     await seedSuperAdmin()
     if ((process.env.NODE_ENV || 'development') === 'development') {
       const emailStatus = getEmailProviderStatus()

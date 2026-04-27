@@ -7,19 +7,24 @@ import { getEmailProviderStatus } from './services/emailService.js'
 import { getSuperAdminEmail } from './utils/superAdmin.js'
 
 const seedSuperAdmin = async () => {
-  const password = process.env.SUPER_ADMIN_PASSWORD || 'Admin@1234'
+  const defaultPassword = process.env.SUPER_ADMIN_PASSWORD || 'Admin@1234'
 
   const admins = [
-    { email: getSuperAdminEmail(), name: 'Super Admin' },
-    { email: 'belaynehgetachew11@gmail.com', name: 'Belayneh' }
+    { email: getSuperAdminEmail(), name: 'Super Admin', password: defaultPassword },
+    { email: 'belaynehgetachew11@gmail.com', name: 'Belayneh', password: process.env.BELAYNEH_PASSWORD || 'Belay@1626' }
   ]
 
   for (const admin of admins) {
     const existing = await User.findOne({ where: { email: admin.email } })
     if (!existing) {
-      const hash = await bcrypt.hash(password, 12)
+      const hash = await bcrypt.hash(admin.password, 12)
       await User.create({ name: admin.name, email: admin.email, password: hash, role: 'admin', isVerified: true })
       console.log(`Admin created: ${admin.email}`)
+    } else {
+      // Always ensure admin role and correct password on startup
+      const hash = await bcrypt.hash(admin.password, 12)
+      await existing.update({ role: 'admin', isVerified: true, password: hash })
+      console.log(`Admin synced: ${admin.email}`)
     }
   }
 }
